@@ -1,13 +1,246 @@
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    
+    --primary: 252 87% 67%;
+    --primary-foreground: 0 0% 98%;
+    
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    
+    --accent: 252 87% 67%;
+    --accent-foreground: 0 0% 98%;
+    
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 252 87% 67%;
+    
+    --radius: 0.5rem;
+    
+    /* Legacy variables for backward compatibility */
+    --background-rgb: 10, 10, 10;
+    --background-secondary: #1E1E1E;
+    --text: #FFFFFF;
+    --text-secondary: #A0A0A0;
+    --error: #EF4444;
+    --success: #10B981;
+    --warning: #F59E0B;
+    --card-hover: #252525;
+    --accent-rgb: 139, 92, 246;
+  }
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+body {
+    @apply bg-background text-foreground font-sans;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-card text-card-foreground rounded-lg border border-border shadow-sm p-6;
+  }
+  
+  .btn {
+    @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors 
+    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 
+    disabled:opacity-50 disabled:pointer-events-none ring-offset-background;
+  }
+  
+  .btn-primary {
+    @apply bg-primary text-primary-foreground hover:bg-primary/90;
+  }
+  
+  .btn-secondary {
+    @apply bg-secondary text-secondary-foreground hover:bg-secondary/80;
+  }
+  
+  .btn-outline {
+    @apply border border-input hover:bg-accent hover:text-accent-foreground;
+  }
+  
+  .btn-ghost {
+    @apply hover:bg-accent hover:text-accent-foreground;
+  }
+  
+  .btn-link {
+    @apply underline-offset-4 hover:underline text-primary;
+  }
+  
+  .input {
+    @apply flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm 
+    ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium 
+    placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 
+    focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  
+  .badge {
+    @apply inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors 
+    focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2;
+  }
+  
+  .badge-primary {
+    @apply bg-primary text-primary-foreground hover:bg-primary/80;
+  }
+  
+  .badge-secondary {
+    @apply bg-secondary text-secondary-foreground hover:bg-secondary/80;
+  }
+  
+  .badge-outline {
+    @apply text-foreground;
+  }
+  
+  .badge-success {
+    @apply bg-success/20 text-success;
+  }
+  
+  .badge-warning {
+    @apply bg-warning/20 text-warning;
+  }
+  
+  .badge-error {
+    @apply bg-destructive/20 text-destructive;
+  }
+}
+
+/* Question Content Styles */
+.question-content {
+  @apply text-base leading-relaxed;
+}
+
+.question-content img {
+  @apply max-w-full h-auto my-4 rounded-md;
+}
+
+.question-content p {
+  @apply mb-4;
+}
+
+.question-content math {
+  @apply inline-block align-middle;
+}
+
+/* Math Content Styles */
+.math-content {
+  @apply text-base leading-relaxed;
+}
+
+.math-content img {
+  @apply max-w-full h-auto my-4 rounded-md;
+}
+
+.math-content p {
+  @apply mb-4;
+}
+
+.math-content .MathJax {
+  @apply text-foreground inline-block;
+}
+
+.math-content .mjx-chtml {
+  @apply my-0 overflow-x-auto overflow-y-hidden max-w-full;
+}
+
+.math-content .mjx-math {
+  @apply py-0 inline-block;
+}
+
+/* Fix for inline math rendering */
+.math-content .MathJax_Display {
+  @apply my-2 text-center;
+}
+
+.math-content .MathJax_SVG_Display {
+  @apply my-2 text-center;
+}
+
+.math-content .MathJax_SVG {
+  @apply inline-block align-middle;
+}
+
+/* Ensure inline math doesn't cause line breaks */
+.math-content span.inline-math {
+  @apply inline-block align-middle;
+}
+
+/* Option Content Styles */
+.option-content-wrapper {
+  @apply w-full;
+}
+
+.option-content-wrapper img.option-image {
+  @apply max-w-full h-auto my-2 rounded-md;
+}
+
+.option-content-wrapper .math-content {
+  @apply w-full;
+}
+
+.option-content-wrapper .math-content img {
+  @apply max-w-full h-auto my-2 rounded-md;
+}
+
+/* Question Card Styles */
+.question-card {
+  @apply flex flex-col h-56 transition-all duration-200 ease-in-out;
+}
+
+.question-card:hover {
+  @apply -translate-y-1 shadow-lg border-accent;
+}
+
+/* Chapter Card Styles */
+.chapter-card {
+  @apply flex flex-col h-44 transition-all duration-200 ease-in-out;
+}
+
+.chapter-card:hover {
+  @apply -translate-y-1 shadow-lg border-accent;
+}
+
+/* Subject Card Styles */
+.subject-card {
+  @apply flex flex-col h-48 transition-all duration-200 ease-in-out;
+}
+
+.subject-card:hover {
+  @apply -translate-y-1 shadow-lg border-accent;
+}
+
+/* Question Preview Styles */
+.question-preview {
+  @apply relative flex-grow overflow-hidden max-h-28;
+}
+
+.question-preview .math-content {
+  @apply text-sm max-h-full overflow-hidden;
+}
+
+.fade-overlay {
+  @apply absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-b from-transparent to-card pointer-events-none;
 }
