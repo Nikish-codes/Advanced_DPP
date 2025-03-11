@@ -16,15 +16,16 @@ const HomePage = () => {
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {modules.map((module) => (
-          <Card 
+          <Link 
             key={module.id} 
-            className="transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:border-primary"
+            to={`/subjects/${module.id}`}
+            className="block transition-all duration-200 hover:-translate-y-1 hover:shadow-lg"
           >
-            <div className="p-4 flex justify-between items-center">
-              <h3 className="text-xl font-semibold text-primary">{module.title}</h3>
-              <Button asChild variant="ghost" size="sm" className="group">
-                <Link to={`/subjects/${module.id}`} className="flex items-center space-x-2">
-                  <span>Start</span>
+            <Card className="h-full border hover:border-primary">
+              <div className="p-4 flex justify-between items-center">
+                <h3 className="text-xl font-semibold text-primary">{module.title}</h3>
+                <div className="flex items-center space-x-2 text-primary">
+                  <span className="text-sm">Start</span>
                   <svg 
                     xmlns="http://www.w3.org/2000/svg" 
                     width="24" 
@@ -35,15 +36,15 @@ const HomePage = () => {
                     strokeWidth="2" 
                     strokeLinecap="round" 
                     strokeLinejoin="round" 
-                    className="h-4 w-4 transition-transform group-hover:translate-x-1"
+                    className="h-4 w-4"
                   >
                     <path d="M5 12h14"/>
                     <path d="m12 5 7 7-7 7"/>
                   </svg>
-                </Link>
-              </Button>
-            </div>
-          </Card>
+                </div>
+              </div>
+            </Card>
+          </Link>
         ))}
       </div>
     </Layout>

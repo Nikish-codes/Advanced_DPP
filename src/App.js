@@ -1,8 +1,7 @@
-import React, { useEffect } from 'react';
-import { useDispatch } from 'react-redux';
+import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { fetchModules } from './store/moduleSlice';
-import HomePage from './pages/HomePage';
+import LandingPage from './pages/LandingPage';
+import SubjectsPage from './pages/SubjectsPage';
 import SubjectPage from './pages/SubjectPage';
 import ChapterPage from './pages/ChapterPage';
 import QuestionPage from './pages/QuestionPage';
@@ -10,16 +9,10 @@ import ProgressPage from './pages/ProgressPage';
 import MathTest from './components/MathTest';
 
 function App() {
-  const dispatch = useDispatch();
-
-  // Load modules when the app starts
-  useEffect(() => {
-    dispatch(fetchModules());
-  }, [dispatch]);
-
   return (
     <Routes>
-      <Route path="/" element={<HomePage />} />
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/subjects" element={<SubjectsPage />} />
       <Route path="/subjects/:subjectId" element={<SubjectPage />} />
       <Route path="/subjects/:subjectId/chapters/:chapterId" element={<ChapterPage />} />
       <Route path="/subjects/:subjectId/chapters/:chapterId/questions/:questionId" element={<QuestionPage />} />

@@ -5,9 +5,10 @@ import { markQuestionAttempted, saveUserAnswer } from '../utils/localStorage';
 // Async thunk to fetch questions for a chapter
 export const fetchQuestions = createAsyncThunk(
   'questions/fetchQuestions',
-  async ({ moduleId, chapterId }, { rejectWithValue }) => {
+  async ({ moduleId, chapterId }, { getState, rejectWithValue }) => {
     try {
-      return getQuestions(moduleId, chapterId);
+      const { dataSource } = getState().modules;
+      return getQuestions(moduleId, chapterId, dataSource);
     } catch (error) {
       return rejectWithValue(error.message);
     }
@@ -17,9 +18,10 @@ export const fetchQuestions = createAsyncThunk(
 // Async thunk to fetch a specific question
 export const fetchQuestion = createAsyncThunk(
   'questions/fetchQuestion',
-  async ({ moduleId, chapterId, questionId }, { rejectWithValue }) => {
+  async ({ moduleId, chapterId, questionId }, { getState, rejectWithValue }) => {
     try {
-      return getQuestion(moduleId, chapterId, questionId);
+      const { dataSource } = getState().modules;
+      return getQuestion(moduleId, chapterId, questionId, dataSource);
     } catch (error) {
       return rejectWithValue(error.message);
     }
@@ -88,16 +90,17 @@ const questionSlice = createSlice({
       state.filteredQuestions = state.questions;
     },
     submitAnswer: (state, action) => {
-      const { questionId, answer, isCorrect } = action.payload;
+      const { questionId, answer, isCorrect, score } = action.payload;
       
       // Save to localStorage
-      markQuestionAttempted(questionId, isCorrect);
+      markQuestionAttempted(questionId, isCorrect, score);
       saveUserAnswer(questionId, answer);
       
       // Update state
       state.userAnswers[questionId] = {
         answer,
         isCorrect,
+        score,
         timestamp: Date.now(),
       };
     },

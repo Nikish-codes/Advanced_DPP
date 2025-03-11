@@ -4,9 +4,10 @@ import { getModules, getChapters } from '../utils/dataParser';
 // Async thunk to fetch modules
 export const fetchModules = createAsyncThunk(
   'modules/fetchModules',
-  async (_, { rejectWithValue }) => {
+  async (_, { getState, rejectWithValue }) => {
     try {
-      return getModules();
+      const { dataSource } = getState().modules;
+      return getModules(dataSource);
     } catch (error) {
       return rejectWithValue(error.message);
     }
@@ -16,11 +17,12 @@ export const fetchModules = createAsyncThunk(
 // Async thunk to fetch chapters for a module
 export const fetchChapters = createAsyncThunk(
   'modules/fetchChapters',
-  async (moduleId, { rejectWithValue }) => {
+  async (moduleId, { getState, rejectWithValue }) => {
     try {
+      const { dataSource } = getState().modules;
       return {
         moduleId,
-        chapters: getChapters(moduleId)
+        chapters: getChapters(moduleId, dataSource)
       };
     } catch (error) {
       return rejectWithValue(error.message);
@@ -35,6 +37,7 @@ const initialState = {
   currentChapter: null,
   loading: false,
   error: null,
+  dataSource: 'DPP', // Default to DPP
 };
 
 const moduleSlice = createSlice({
@@ -53,6 +56,15 @@ const moduleSlice = createSlice({
     },
     clearCurrentChapter: (state) => {
       state.currentChapter = null;
+    },
+    setDataSource: (state, action) => {
+      state.dataSource = action.payload;
+      // Reset data when changing source
+      state.modules = [];
+      state.chapters = {};
+      state.currentModule = null;
+      state.currentChapter = null;
+      state.loading = true; // Set loading to true when changing data source
     },
   },
   extraReducers: (builder) => {
@@ -90,7 +102,8 @@ export const {
   setCurrentModule, 
   setCurrentChapter, 
   clearCurrentModule, 
-  clearCurrentChapter 
+  clearCurrentChapter,
+  setDataSource
 } = moduleSlice.actions;
 
 export default moduleSlice.reducer; 

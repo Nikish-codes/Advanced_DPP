@@ -1,17 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { fetchQuestions } from '../store/questionSlice';
 import Layout from '../components/Layout';
 import MathContent from '../components/MathContent';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
+import { getAttemptedQuestions } from '../utils/localStorage';
 
 const ChapterPage = () => {
   const { subjectId, chapterId } = useParams();
   const dispatch = useDispatch();
-  const { modules, chapters } = useSelector((state) => state.modules);
+  const navigate = useNavigate();
+  const { modules, chapters, dataSource } = useSelector((state) => state.modules);
   const { questions, loading } = useSelector((state) => state.questions);
   
   // State for filters and sorting
@@ -20,6 +22,7 @@ const ChapterPage = () => {
   const [typeFilter, setTypeFilter] = useState('all');
   const [sortOption, setSortOption] = useState('default');
   const [searchQuery, setSearchQuery] = useState('');
+  const [attemptFilter, setAttemptFilter] = useState('all');
   
   // State for expandable panels
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
@@ -27,6 +30,9 @@ const ChapterPage = () => {
   const currentModule = modules.find(module => module.id === subjectId);
   const currentChapters = chapters[subjectId] || [];
   const currentChapter = currentChapters.find(chapter => chapter.id === chapterId);
+  
+  // Get attempted questions data
+  const attemptedQuestions = getAttemptedQuestions(dataSource);
   
   useEffect(() => {
     if (subjectId && chapterId) {
@@ -66,6 +72,24 @@ const ChapterPage = () => {
       });
     }
     
+    // Apply attempt filter
+    if (attemptFilter !== 'all') {
+      result = result.filter(q => {
+        const isAttempted = attemptedQuestions[q.question_id];
+        
+        switch (attemptFilter) {
+          case 'attempted':
+            return isAttempted;
+          case 'unattempted':
+            return !isAttempted;
+          case 'incorrect':
+            return isAttempted && !isAttempted.isCorrect;
+          default:
+            return true;
+        }
+      });
+    }
+    
     // Apply search filter if there's a query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
@@ -89,7 +113,7 @@ const ChapterPage = () => {
     }
     
     setFilteredQuestions(result);
-  }, [questions, difficultyFilter, typeFilter, sortOption, searchQuery]);
+  }, [questions, difficultyFilter, typeFilter, sortOption, searchQuery, attemptFilter, attemptedQuestions]);
   
   if (!currentModule || !currentChapter) {
     return (
@@ -141,6 +165,10 @@ const ChapterPage = () => {
     setSearchQuery(e.target.value);
   };
   
+  const handleAttemptFilterChange = (e) => {
+    setAttemptFilter(e.target.value);
+  };
+  
   const toggleFilterPanel = () => {
     setIsFilterPanelOpen(!isFilterPanelOpen);
   };
@@ -150,14 +178,20 @@ const ChapterPage = () => {
     setTypeFilter('all');
     setSortOption('default');
     setSearchQuery('');
+    setAttemptFilter('all');
+  };
+  
+  // Handle question click
+  const handleQuestionClick = (questionId) => {
+    navigate(`/subjects/${subjectId}/chapters/${chapterId}/questions/${questionId}`);
   };
   
   return (
     <Layout>
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <Button asChild variant="ghost" className="group mb-2">
-            <Link to={`/subjects/${subjectId}`} className="flex items-center space-x-2">
+          <Button asChild variant="ghost" className="group w-full">
+            <Link to={`/subjects/${subjectId}`} className="flex items-center space-x-2 w-full">
               <svg 
                 xmlns="http://www.w3.org/2000/svg" 
                 width="24" 
@@ -202,6 +236,7 @@ const ChapterPage = () => {
                     variant="outline" 
                     size="sm" 
                     onClick={resetFilters}
+                    className="w-full cursor-pointer"
                   >
                     Reset Filters
                   </Button>
@@ -210,7 +245,7 @@ const ChapterPage = () => {
                   variant="outline" 
                   size="sm" 
                   onClick={toggleFilterPanel}
-                  className="flex items-center space-x-1"
+                  className="flex items-center space-x-1 w-full cursor-pointer"
                 >
                   <span>{isFilterPanelOpen ? 'Hide Filters' : 'Show Filters'}</span>
                   <svg 
@@ -235,7 +270,7 @@ const ChapterPage = () => {
           {/* Expandable Filters Panel */}
           {isFilterPanelOpen && (
             <Card className="mb-6 p-4">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">Difficulty</label>
                   <select 
@@ -261,6 +296,20 @@ const ChapterPage = () => {
                     <option value="singleCorrect">Single Correct</option>
                     <option value="multipleCorrect">Multiple Correct</option>
                     <option value="numerical">Numerical</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-1">Attempt Status</label>
+                  <select 
+                    value={attemptFilter} 
+                    onChange={handleAttemptFilterChange}
+                    className="w-full p-2 rounded-md bg-background border border-border focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    <option value="all">All Questions</option>
+                    <option value="attempted">Attempted</option>
+                    <option value="unattempted">Not Attempted</option>
+                    <option value="incorrect">Incorrect Only</option>
                   </select>
                 </div>
                 
@@ -293,38 +342,48 @@ const ChapterPage = () => {
           
           {filteredQuestions.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredQuestions.map((question, index) => (
-                <Card 
-                  key={question.question_id || index} 
-                  className="transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:border-primary"
-                >
-                  <Link 
-                    to={`/subjects/${subjectId}/chapters/${chapterId}/questions/${question.question_id || index}`}
-                    className="p-4 block h-full"
+              {filteredQuestions.map((question, index) => {
+                const isAttempted = attemptedQuestions[question.question_id];
+                const isCorrect = isAttempted?.isCorrect;
+                
+                return (
+                  <Card 
+                    key={question.question_id || index} 
+                    className={`transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:border-primary ${
+                      isAttempted ? 'opacity-70' : ''
+                    } cursor-pointer`}
+                    onClick={() => handleQuestionClick(question.question_id || index)}
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium">Question {questions.indexOf(question) + 1}</span>
-                      <div className="flex items-center space-x-2">
-                        <Badge variant={
-                          question.level === 1 ? "success" : 
-                          question.level === 2 ? "warning" : "error"
-                        }>
-                          Level {question.level || 1}
-                        </Badge>
-                        <Badge variant="outline">
-                          {getQuestionType(question) === 'numerical' ? 'Numerical' : 
-                           getQuestionType(question) === 'multipleCorrect' ? 'Multiple Correct' : 
-                           'Single Correct'}
-                        </Badge>
+                    <div className="p-4 block h-full">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-medium">Question {questions.indexOf(question) + 1}</span>
+                        <div className="flex items-center space-x-2">
+                          {isAttempted && (
+                            <Badge variant={isCorrect ? "success" : "destructive"}>
+                              {isCorrect ? "Correct" : "Incorrect"}
+                            </Badge>
+                          )}
+                          <Badge variant={
+                            question.level === 1 ? "success" : 
+                            question.level === 2 ? "warning" : "error"
+                          }>
+                            Level {question.level || 1}
+                          </Badge>
+                          <Badge variant="outline">
+                            {getQuestionType(question) === 'numerical' ? 'Numerical' : 
+                             getQuestionType(question) === 'multipleCorrect' ? 'Multiple Correct' : 
+                             'Single Correct'}
+                          </Badge>
+                        </div>
+                      </div>
+                      <div className="question-preview">
+                        <MathContent content={getQuestionPreview(question)} />
+                        <div className="fade-overlay"></div>
                       </div>
                     </div>
-                    <div className="question-preview">
-                      <MathContent content={getQuestionPreview(question)} />
-                      <div className="fade-overlay"></div>
-                    </div>
-                  </Link>
-                </Card>
-              ))}
+                  </Card>
+                );
+              })}
             </div>
           ) : (
             <Card className="p-6 text-center">
@@ -332,6 +391,7 @@ const ChapterPage = () => {
               <Button 
                 variant="outline" 
                 onClick={resetFilters}
+                className="w-full cursor-pointer"
               >
                 Reset Filters
               </Button>
@@ -342,8 +402,8 @@ const ChapterPage = () => {
         <Card className="p-6">
           <p className="text-muted-foreground">No questions found for this chapter.</p>
           <div className="mt-4">
-            <Button asChild variant="outline">
-              <Link to={`/subjects/${subjectId}`}>
+            <Button asChild variant="outline" className="w-full">
+              <Link to={`/subjects/${subjectId}`} className="flex items-center w-full">
                 &larr; Back to {currentModule.title}
               </Link>
             </Button>
