@@ -1,19 +1,21 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { fetchQuestion, submitAnswer } from '../store/questionSlice';
+import { fetchQuestion, submitAnswer, toggleBookmark, fetchBookmarkedQuestions } from '../store/questionSlice';
 import Layout from '../components/Layout';
 import QuestionContent from '../components/QuestionContent';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
+import { isQuestionBookmarked } from '../utils/localStorage';
+import { getPaperFullTitle } from '../utils/paperData';
 
 const QuestionPage = () => {
-  const { subjectId, chapterId, questionId } = useParams();
+  const { subjectName, chapterName, questionNumber } = useParams();
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { modules, chapters } = useSelector((state) => state.modules);
-  const { currentQuestion, loading, questions } = useSelector((state) => state.questions);
+  const { modules, chapters, dataSource } = useSelector((state) => state.modules);
+  const { currentQuestion, loading, questions, bookmarkedQuestions } = useSelector((state) => state.questions);
   
   const [selectedOptions, setSelectedOptions] = useState([]);
   const [numericalAnswer, setNumericalAnswer] = useState('');
@@ -21,23 +23,80 @@ const QuestionPage = () => {
   const [isCorrect, setIsCorrect] = useState(null);
   const [score, setScore] = useState(null); // For partial marking in multiple correct
   const [time, setTime] = useState(0);
+  const [isBookmarked, setIsBookmarked] = useState(false);
   const timerRef = useRef(null);
   const scrollRef = useRef(null);
   
-  const currentModule = modules.find(module => module.id === subjectId);
-  const currentChapters = chapters[subjectId] || [];
-  const currentChapter = currentChapters.find(chapter => chapter.id === chapterId);
+  // Find module and chapter based on slugs
+  const currentModule = modules.find(module => 
+    module.title.toLowerCase().replace(/\s+/g, '-') === subjectName
+  );
+  const currentChapters = chapters[currentModule?.id] || [];
+  const currentChapter = currentChapters.find(chapter => 
+    chapter.title.toLowerCase().replace(/\s+/g, '-') === chapterName
+  );
   
-  // Find the current question index in the questions array
-  const currentIndex = questions.findIndex(q => q.question_id === questionId || q.id === questionId);
+  // Convert question number to index
+  const currentIndex = parseInt(questionNumber) - 1;
+  
+  // Handle keyboard navigation
+  const handleKeyPress = (e) => {
+    if (e.key === 'ArrowLeft' && currentIndex > 0) {
+      navigateToQuestion(-1);
+    } else if (e.key === 'ArrowRight' && currentIndex < questions.length - 1) {
+      navigateToQuestion(1);
+    }
+  };
+  
+  // Handle bookmark toggle
+  const handleToggleBookmark = () => {
+    if (!currentQuestion) return;
+    
+    // Prepare minimal question data to store with bookmark
+    const questionData = {
+      question_id: currentQuestion.question_id,
+      question_text: getQuestionText(),
+      moduleId: currentModule?.id,
+      chapterId: currentChapter?.id,
+      moduleName: currentModule?.title,
+      chapterName: currentChapter?.title,
+      type: getQuestionType()
+    };
+    
+    dispatch(toggleBookmark({ 
+      questionId: currentQuestion.question_id, 
+      questionData, 
+      dataSource 
+    }));
+  };
   
   useEffect(() => {
-    if (subjectId && chapterId && questionId) {
+    if (currentModule?.id && currentChapter?.id) {
+      const questionId = questions[currentIndex]?.question_id;
+      if (questionId) {
+        console.log('Redux State Debug:', {
+          currentQuestion: questions[currentIndex],
+          dataSource,
+          paperId: questions[currentIndex]?.paper_id,
+          questionId,
+          fullQuestion: questions[currentIndex],
+          questionKeys: questions[currentIndex] ? Object.keys(questions[currentIndex]) : [],
+          isPYQ: dataSource === 'PYQ'
+        });
+        
       dispatch(fetchQuestion({ 
-        moduleId: subjectId, 
-        chapterId, 
+          moduleId: currentModule.id, 
+          chapterId: currentChapter.id, 
         questionId 
       }));
+        
+        if (Object.keys(bookmarkedQuestions).length === 0) {
+          dispatch(fetchBookmarkedQuestions());
+        }
+        
+        // Check if the question is bookmarked
+        setIsBookmarked(isQuestionBookmarked(questionId, dataSource));
+      }
     }
     
     // Reset state when question changes
@@ -51,16 +110,25 @@ const QuestionPage = () => {
     // Start timer
     startTimer();
     
-    // Scroll to top when navigating to a new question
-    window.scrollTo(0, 0);
+    // Add keyboard event listeners
+    window.addEventListener('keydown', handleKeyPress);
     
-    // Clean up timer on unmount or when question changes
     return () => {
+      // Clean up
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
+      window.removeEventListener('keydown', handleKeyPress);
     };
-  }, [dispatch, subjectId, chapterId, questionId]);
+  }, [dispatch, currentModule?.id, currentChapter?.id, currentIndex, questions, dataSource]);
+  
+  // Update bookmark status when bookmarkedQuestions changes
+  useEffect(() => {
+    const questionId = questions[currentIndex]?.question_id;
+    if (questionId) {
+      setIsBookmarked(!!bookmarkedQuestions[questionId]);
+    }
+  }, [bookmarkedQuestions, currentIndex, questions]);
   
   // Prevent auto-scrolling issue
   useEffect(() => {
@@ -118,16 +186,16 @@ const QuestionPage = () => {
     const options = currentQuestion.options || [];
     
     // Convert array to object with letter keys (A, B, C, D)
-    const optionsObj = {};
+      const optionsObj = {};
     const letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-    options.forEach((option, index) => {
+      options.forEach((option, index) => {
       if (index < letters.length) {
         // Use the option text directly since it's a string in the JSON
         optionsObj[letters[index]] = option;
       }
     });
     
-    return optionsObj;
+        return optionsObj;
   };
   
   // Helper function to get correct answer
@@ -233,16 +301,16 @@ const QuestionPage = () => {
       }
     }
     
-    setIsCorrect(correct);
+      setIsCorrect(correct);
     setScore(score);
-    setShowSolution(true);
-    
-    dispatch(submitAnswer({
+      setShowSolution(true);
+      
+      dispatch(submitAnswer({
       questionId: currentQuestion.question_id,
       answer: questionType === 'numerical' ? numericalAnswer : selectedOptions,
-      isCorrect: correct,
+        isCorrect: correct,
       score
-    }));
+      }));
   };
   
   // Helper function to format option content
@@ -259,25 +327,31 @@ const QuestionPage = () => {
     
     const newIndex = currentIndex + direction;
     if (newIndex >= 0 && newIndex < questions.length) {
-      const nextQuestion = questions[newIndex];
-      const nextQuestionId = nextQuestion.question_id || nextQuestion.id;
-      navigate(`/subjects/${subjectId}/chapters/${chapterId}/questions/${nextQuestionId}`);
+      const subjectSlug = currentModule?.title?.toLowerCase().replace(/\s+/g, '-');
+      const chapterSlug = currentChapter?.title?.toLowerCase().replace(/\s+/g, '-');
+      navigate(`/${subjectSlug}/${chapterSlug}/${newIndex + 1}`);
     }
   };
   
-  // Add keyboard navigation
+  // Add logging when currentQuestion changes
   useEffect(() => {
-    const handleKeyPress = (e) => {
-      if (e.key === 'ArrowLeft' && currentIndex > 0) {
-        navigateToQuestion(-1);
-      } else if (e.key === 'ArrowRight' && currentIndex < questions.length - 1) {
-        navigateToQuestion(1);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [currentIndex, questions.length]);
+    if (currentQuestion) {
+      console.log('Current Question State:', {
+        hasQuestion: !!currentQuestion,
+        paperId: currentQuestion.paper_id,
+        dataSource,
+        questionKeys: Object.keys(currentQuestion),
+        questionData: currentQuestion,
+        isPYQ: dataSource === 'PYQ',
+        possiblePaperIdFields: {
+          paper_id: currentQuestion.paper_id,
+          paperId: currentQuestion.paperId,
+          paperID: currentQuestion.paperID,
+          paper: currentQuestion.paper
+        }
+      });
+    }
+  }, [currentQuestion, dataSource]);
   
   if (!currentModule || !currentChapter) {
     return (
@@ -285,7 +359,7 @@ const QuestionPage = () => {
         <div className="flex flex-col items-center justify-center min-h-[50vh]">
           <h1 className="text-2xl font-bold mb-4">Question not found</h1>
           <Button asChild variant="outline">
-            <Link to={`/subjects/${subjectId}`}>
+            <Link to={`/${subjectName}/${chapterName}`}>
               &larr; Back to {currentModule ? currentModule.title : 'Subject'}
             </Link>
           </Button>
@@ -303,174 +377,182 @@ const QuestionPage = () => {
   return (
     <Layout>
       <div className="pb-32">
-        <div className="mb-8 flex flex-col space-y-4">
-          <div className="flex items-center justify-between">
+      <div className="mb-8 flex flex-col space-y-4">
+        <div className="flex items-center justify-between">
             <Button asChild variant="ghost" className="group w-full">
-              <Link to={`/subjects/${subjectId}/chapters/${chapterId}`} className="flex items-center space-x-2 w-full">
-                <svg 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  width="24" 
-                  height="24" 
-                  viewBox="0 0 24 24" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  strokeWidth="2" 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round" 
-                  className="h-4 w-4 transition-transform group-hover:-translate-x-1"
-                >
-                  <path d="m15 18-6-6 6-6"/>
-                </svg>
-                <span>Back to {currentChapter.title}</span>
-              </Link>
-            </Button>
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-muted-foreground">Time:</span>
-              <Badge variant="outline" className="bg-secondary/20 text-foreground">
-                {formatTime(time)}
-              </Badge>
-            </div>
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold tracking-tight">Question {currentIndex + 1}</h1>
-            <div className="flex items-center space-x-2">
-              {currentQuestion && currentQuestion.level && (
-                <Badge variant={
-                  currentQuestion.level === 1 ? "success" : 
-                  currentQuestion.level === 2 ? "warning" : "error"
-                }>
-                  Level {currentQuestion.level}
-                </Badge>
-              )}
-              <Badge variant="outline">
-                {getQuestionType() === 'numerical' ? 'Numerical' : 
-                 getQuestionType() === 'multipleCorrect' ? 'Multiple Correct' : 
-                 'Single Correct'}
-              </Badge>
-            </div>
+              <Link to={`/${subjectName}/${chapterName}`} className="flex items-center space-x-2 w-full">
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                width="24" 
+                height="24" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                className="h-4 w-4 transition-transform group-hover:-translate-x-1"
+              >
+                <path d="m15 18-6-6 6-6"/>
+              </svg>
+                <span>Back to {currentChapter?.title || 'Chapter'}</span>
+            </Link>
+          </Button>
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={() => handleToggleBookmark()}
+              className="ml-2"
+              aria-label={isBookmarked ? "Remove bookmark" : "Bookmark this question"}
+            >
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                width="24" 
+                height="24" 
+                viewBox="0 0 24 24" 
+                fill={isBookmarked ? "currentColor" : "none"}
+                stroke="currentColor" 
+                strokeWidth="2" 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                className={`h-5 w-5 ${isBookmarked ? 'text-yellow-500' : ''}`}
+              >
+                <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/>
+              </svg>
+          </Button>
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-muted-foreground">Time:</span>
+            <Badge variant="outline" className="bg-secondary/20 text-foreground">
+              {formatTime(time)}
+            </Badge>
           </div>
         </div>
         
-        {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        <div className="flex items-center justify-between">
+            <h1 className="text-3xl font-bold tracking-tight">Question {currentIndex + 1}</h1>
+          <div className="flex items-center space-x-2">
+            {currentQuestion && currentQuestion.level && (
+              <Badge variant={
+                currentQuestion.level === 1 ? "success" : 
+                currentQuestion.level === 2 ? "warning" : "error"
+              }>
+                Level {currentQuestion.level}
+              </Badge>
+            )}
+            <Badge variant="outline">
+              {getQuestionType() === 'numerical' ? 'Numerical' : 
+               getQuestionType() === 'multipleCorrect' ? 'Multiple Correct' : 
+               'Single Correct'}
+            </Badge>
           </div>
-        ) : currentQuestion ? (
+        </div>
+      </div>
+      
+      {loading ? (
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        </div>
+      ) : currentQuestion ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-24">
-            <div className="lg:col-span-2 space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-xl">Question</CardTitle>
-                </CardHeader>
-                <CardContent className="overflow-x-auto">
-                  <QuestionContent content={getQuestionText()} />
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-xl">
-                    {getQuestionType() === 'numerical' ? 'Enter your answer' : 
-                     isMultipleChoice ? 'Select all correct options' : 'Select the correct option'}
-                  </CardTitle>
-                  {isMultipleChoice && (
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Note: Full marks for selecting all correct options only. Partial marks for selecting some correct options. 
-                      Negative marks for selecting any incorrect option.
-                    </p>
-                  )}
-                </CardHeader>
-                <CardContent>
-                  {getQuestionType() === 'numerical' ? (
-                    // Numerical input
-                    <div className="space-y-4">
-                      <input
-                        type="text"
-                        value={numericalAnswer}
-                        onChange={handleNumericalInputChange}
-                        disabled={isCorrect !== null}
-                        placeholder="Enter your numerical answer"
-                        className="input w-full"
-                      />
-                      {isCorrect !== null && (
-                        <div className={`text-sm ${isCorrect ? 'text-success' : 'text-destructive'}`}>
-                          {isCorrect ? (
-                            'Correct!'
-                          ) : (
-                            <div className="space-y-1">
-                              <div>Incorrect.</div>
-                              <div className="font-medium">
-                                The correct answer is: <span className="bg-success/10 text-success px-2 py-1 rounded">{getCorrectAnswer()}</span>
-                              </div>
+          <div className="lg:col-span-2 space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-xl">Question</CardTitle>
+              </CardHeader>
+              <CardContent className="overflow-x-auto">
+                <QuestionContent content={getQuestionText()} />
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-xl">
+                  {getQuestionType() === 'numerical' ? 'Enter your answer' : 
+                   isMultipleChoice ? 'Select all correct options' : 'Select the correct option'}
+                </CardTitle>
+                {isMultipleChoice && (
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Note: Full marks for selecting all correct options only. Partial marks for selecting some correct options. 
+                    Negative marks for selecting any incorrect option.
+                  </p>
+                )}
+              </CardHeader>
+              <CardContent>
+                {getQuestionType() === 'numerical' ? (
+                  // Numerical input
+                  <div className="space-y-4">
+                    <input
+                      type="text"
+                      value={numericalAnswer}
+                      onChange={handleNumericalInputChange}
+                      disabled={isCorrect !== null}
+                      placeholder="Enter your numerical answer"
+                      className="input w-full"
+                    />
+                    {isCorrect !== null && (
+                      <div className={`text-sm ${isCorrect ? 'text-success' : 'text-destructive'}`}>
+                        {isCorrect ? (
+                          'Correct!'
+                        ) : (
+                          <div className="space-y-1">
+                            <div>Incorrect.</div>
+                            <div className="font-medium">
+                              The correct answer is: <span className="bg-success/10 text-success px-2 py-1 rounded">{getCorrectAnswer()}</span>
                             </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    // Multiple choice options
-                    <div className="space-y-3">
-                      {Object.entries(getQuestionOptions()).map(([key, value]) => {
-                        const isSelected = selectedOptions.includes(key);
-                        const isCorrectAnswer = correctAnswers.includes(key);
-                        const showResult = isCorrect !== null;
-                        
-                        let optionClass = "relative flex items-start space-x-3 rounded-lg border p-4 cursor-pointer transition-all";
-                        
-                        if (showResult) {
-                          if (isCorrectAnswer) {
-                            optionClass += " border-success bg-success/5";
-                          } else if (isSelected && !isCorrectAnswer) {
-                            optionClass += " border-destructive bg-destructive/5";
-                          } else {
-                            optionClass += " border-border";
-                          }
-                        } else if (isSelected) {
-                          optionClass += " border-primary bg-primary/5";
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  // Multiple choice options
+                  <div className="space-y-3">
+                    {Object.entries(getQuestionOptions()).map(([key, value]) => {
+                      const isSelected = selectedOptions.includes(key);
+                      const isCorrectAnswer = correctAnswers.includes(key);
+                      const showResult = isCorrect !== null;
+                      
+                      let optionClass = "relative flex items-start space-x-3 rounded-lg border p-4 cursor-pointer transition-all";
+                      
+                      if (showResult) {
+                        if (isCorrectAnswer) {
+                          optionClass += " border-success bg-success/5";
+                        } else if (isSelected && !isCorrectAnswer) {
+                          optionClass += " border-destructive bg-destructive/5";
                         } else {
-                          optionClass += " border-border hover:border-primary hover:bg-primary/5";
+                          optionClass += " border-border";
                         }
-                        
-                        return (
-                          <div 
-                            key={key} 
-                            className={optionClass}
-                            onClick={() => handleOptionSelect(key)}
-                          >
-                            <div className="flex-shrink-0">
-                              <div className={`flex h-6 w-6 items-center justify-center rounded-${isMultipleChoice ? 'md' : 'full'} border ${
-                                isSelected ? 'border-primary bg-primary text-primary-foreground' : 
-                                (showResult && isCorrectAnswer) ? 'border-success bg-success text-success-foreground' : 'border-border'
-                              }`}>
-                                {isMultipleChoice ? (
-                                  isSelected ? (
-                                    <svg 
-                                      xmlns="http://www.w3.org/2000/svg" 
-                                      className="h-4 w-4" 
-                                      viewBox="0 0 20 20" 
-                                      fill="currentColor"
-                                    >
-                                      <path 
-                                        fillRule="evenodd" 
-                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" 
-                                        clipRule="evenodd" 
-                                      />
-                                    </svg>
-                                  ) : (showResult && isCorrectAnswer) ? (
-                                    <svg 
-                                      xmlns="http://www.w3.org/2000/svg" 
-                                      className="h-4 w-4" 
-                                      viewBox="0 0 20 20" 
-                                      fill="currentColor"
-                                    >
-                                      <path 
-                                        fillRule="evenodd" 
-                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" 
-                                        clipRule="evenodd" 
-                                      />
-                                    </svg>
-                                  ) : null
+                      } else if (isSelected) {
+                        optionClass += " border-primary bg-primary/5";
+                      } else {
+                        optionClass += " border-border hover:border-primary hover:bg-primary/5";
+                      }
+                      
+                      return (
+                        <div 
+                          key={key} 
+                          className={optionClass}
+                          onClick={() => handleOptionSelect(key)}
+                        >
+                          <div className="flex-shrink-0">
+                            <div className={`flex h-6 w-6 items-center justify-center rounded-${isMultipleChoice ? 'md' : 'full'} border ${
+                              isSelected ? 'border-primary bg-primary text-primary-foreground' : 
+                              (showResult && isCorrectAnswer) ? 'border-success bg-success text-success-foreground' : 'border-border'
+                            }`}>
+                              {isMultipleChoice ? (
+                                isSelected ? (
+                                  <svg 
+                                    xmlns="http://www.w3.org/2000/svg" 
+                                    className="h-4 w-4" 
+                                    viewBox="0 0 20 20" 
+                                    fill="currentColor"
+                                  >
+                                    <path 
+                                      fillRule="evenodd" 
+                                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" 
+                                      clipRule="evenodd" 
+                                    />
+                                  </svg>
                                 ) : (showResult && isCorrectAnswer) ? (
                                   <svg 
                                     xmlns="http://www.w3.org/2000/svg" 
@@ -484,83 +566,28 @@ const QuestionPage = () => {
                                       clipRule="evenodd" 
                                     />
                                   </svg>
-                                ) : key}
-                              </div>
-                            </div>
-                            <div className="flex-grow option-content-wrapper overflow-x-auto">
-                              <QuestionContent content={formatOptionContent(value)} />
-                            </div>
-                            {showResult && isCorrectAnswer && (
-                              <div className="absolute right-4 top-4 text-success">
+                                ) : null
+                              ) : (showResult && isCorrectAnswer) ? (
                                 <svg 
                                   xmlns="http://www.w3.org/2000/svg" 
-                                  width="24" 
-                                  height="24" 
-                                  viewBox="0 0 24 24" 
-                                  fill="none" 
-                                  stroke="currentColor" 
-                                  strokeWidth="2" 
-                                  strokeLinecap="round" 
-                                  strokeLinejoin="round" 
-                                  className="h-5 w-5"
+                                  className="h-4 w-4" 
+                                  viewBox="0 0 20 20" 
+                                  fill="currentColor"
                                 >
-                                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                                  <polyline points="22 4 12 14.01 9 11.01"/>
+                                  <path 
+                                    fillRule="evenodd" 
+                                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" 
+                                    clipRule="evenodd" 
+                                  />
                                 </svg>
-                              </div>
-                            )}
-                            {showResult && isSelected && !isCorrectAnswer && (
-                              <div className="absolute right-4 top-4 text-destructive">
-                                <svg 
-                                  xmlns="http://www.w3.org/2000/svg" 
-                                  width="24" 
-                                  height="24" 
-                                  viewBox="0 0 24 24" 
-                                  fill="none" 
-                                  stroke="currentColor" 
-                                  strokeWidth="2" 
-                                  strokeLinecap="round" 
-                                  strokeLinejoin="round" 
-                                  className="h-5 w-5"
-                                >
-                                  <circle cx="12" cy="12" r="10"/>
-                                  <line x1="15" y1="9" x2="9" y2="15"/>
-                                  <line x1="9" y1="9" x2="15" y2="15"/>
-                                </svg>
-                              </div>
-                            )}
+                              ) : key}
+                            </div>
                           </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </CardContent>
-                <CardFooter className="flex justify-end">
-                  <Button 
-                    onClick={handleSubmit}
-                    disabled={(getQuestionType() === 'numerical' && !numericalAnswer) || 
-                             (getQuestionType() !== 'numerical' && selectedOptions.length === 0) || 
-                             isCorrect !== null}
-                    className="w-full cursor-pointer"
-                  >
-                    {isCorrect !== null ? 'Submitted' : 'Submit Answer'}
-                  </Button>
-                </CardFooter>
-              </Card>
-            </div>
-            
-            <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-xl">Solution</CardTitle>
-                </CardHeader>
-                <CardContent className="overflow-x-auto">
-                  {isCorrect !== null ? (
-                    <div className="space-y-4">
-                      <div className={`p-4 rounded-md ${isCorrect ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'}`}>
-                        <div className="flex items-center space-x-2">
-                          {isCorrect ? (
-                            <>
+                          <div className="flex-grow option-content-wrapper overflow-x-auto">
+                            <QuestionContent content={formatOptionContent(value)} />
+                          </div>
+                          {showResult && isCorrectAnswer && (
+                            <div className="absolute right-4 top-4 text-success">
                               <svg 
                                 xmlns="http://www.w3.org/2000/svg" 
                                 width="24" 
@@ -576,10 +603,10 @@ const QuestionPage = () => {
                                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
                                 <polyline points="22 4 12 14.01 9 11.01"/>
                               </svg>
-                              <span className="font-medium">Correct Answer!</span>
-                            </>
-                          ) : (
-                            <>
+                            </div>
+                          )}
+                          {showResult && isSelected && !isCorrectAnswer && (
+                            <div className="absolute right-4 top-4 text-destructive">
                               <svg 
                                 xmlns="http://www.w3.org/2000/svg" 
                                 width="24" 
@@ -596,69 +623,138 @@ const QuestionPage = () => {
                                 <line x1="15" y1="9" x2="9" y2="15"/>
                                 <line x1="9" y1="9" x2="15" y2="15"/>
                               </svg>
-                              <span className="font-medium">Incorrect Answer</span>
-                            </>
+                            </div>
                           )}
                         </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+              <CardFooter className="flex justify-end">
+                <Button 
+                  onClick={handleSubmit}
+                  disabled={(getQuestionType() === 'numerical' && !numericalAnswer) || 
+                           (getQuestionType() !== 'numerical' && selectedOptions.length === 0) || 
+                           isCorrect !== null}
+                    className="w-full cursor-pointer"
+                >
+                  {isCorrect !== null ? 'Submitted' : 'Submit Answer'}
+                </Button>
+              </CardFooter>
+            </Card>
+          </div>
+          
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-xl">Solution</CardTitle>
+              </CardHeader>
+              <CardContent className="overflow-x-auto">
+                  {isCorrect !== null ? (
+                  <div className="space-y-4">
+                    <div className={`p-4 rounded-md ${isCorrect ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'}`}>
+                      <div className="flex items-center space-x-2">
+                        {isCorrect ? (
+                          <>
+                            <svg 
+                              xmlns="http://www.w3.org/2000/svg" 
+                              width="24" 
+                              height="24" 
+                              viewBox="0 0 24 24" 
+                              fill="none" 
+                              stroke="currentColor" 
+                              strokeWidth="2" 
+                              strokeLinecap="round" 
+                              strokeLinejoin="round" 
+                              className="h-5 w-5"
+                            >
+                              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                              <polyline points="22 4 12 14.01 9 11.01"/>
+                            </svg>
+                            <span className="font-medium">Correct Answer!</span>
+                          </>
+                        ) : (
+                          <>
+                            <svg 
+                              xmlns="http://www.w3.org/2000/svg" 
+                              width="24" 
+                              height="24" 
+                              viewBox="0 0 24 24" 
+                              fill="none" 
+                              stroke="currentColor" 
+                              strokeWidth="2" 
+                              strokeLinecap="round" 
+                              strokeLinejoin="round" 
+                              className="h-5 w-5"
+                            >
+                              <circle cx="12" cy="12" r="10"/>
+                              <line x1="15" y1="9" x2="9" y2="15"/>
+                              <line x1="9" y1="9" x2="15" y2="15"/>
+                            </svg>
+                            <span className="font-medium">Incorrect Answer</span>
+                          </>
+                        )}
+                      </div>
 
-                        <div className="mt-2 text-sm">
-                          {isCorrect ? 
-                            'Great job! You selected the correct answer.' : 
-                            <>
-                              <div>The correct answer is:</div>
-                              {getQuestionType() === 'numerical' ? (
-                                <div className="font-medium mt-1 text-base">{getCorrectAnswer()}</div>
+                      <div className="mt-2 text-sm">
+                        {isCorrect ? 
+                          'Great job! You selected the correct answer.' : 
+                          <>
+                            <div>The correct answer is:</div>
+                            {getQuestionType() === 'numerical' ? (
+                              <div className="font-medium mt-1 text-base">{getCorrectAnswer()}</div>
                               ) : getQuestionType() === 'multipleCorrect' ? (
-                                <div className="mt-1">
+                              <div className="mt-1">
                                   {Array.isArray(getCorrectAnswer()) ? 
                                     getCorrectAnswer().map((option, index) => (
-                                      <span key={option} className="inline-block bg-success/10 text-success px-2 py-1 rounded mr-2 mb-1 font-medium">
-                                        {option}
-                                      </span>
+                                  <span key={option} className="inline-block bg-success/10 text-success px-2 py-1 rounded mr-2 mb-1 font-medium">
+                                    {option}
+                                  </span>
                                     )) : 
                                     <span className="inline-block bg-success/10 text-success px-2 py-1 rounded mr-2 mb-1 font-medium">
                                       {getCorrectAnswer()}
                                     </span>
                                   }
-                                </div>
-                              ) : (
+                              </div>
+                            ) : (
                                 <div className="font-medium mt-1 text-base">
                                   {getCorrectAnswer()}
                                 </div>
-                              )}
-                            </>
-                          }
-                        </div>
-                        {score !== null && (
-                          <div className="mt-2 text-sm font-medium">
-                            Score: {score > 0 ? `+${score}` : score}
-                          </div>
-                        )}
+                            )}
+                          </>
+                        }
                       </div>
-                      
-                      {showSolution && (
-                        <div>
-                          <h4 className="font-medium mb-2">Explanation:</h4>
-                          <QuestionContent content={getExplanation()} />
+                      {score !== null && (
+                        <div className="mt-2 text-sm font-medium">
+                          Score: {score > 0 ? `+${score}` : score}
                         </div>
                       )}
                     </div>
-                  ) : (
-                    <div className="bg-secondary/20 p-4 rounded-md text-center text-muted-foreground">
-                      Submit your answer to see the solution.
+                    
+                      {showSolution && (
+                    <div>
+                      <h4 className="font-medium mb-2">Explanation:</h4>
+                      <QuestionContent content={getExplanation()} />
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+                      )}
+                  </div>
+                ) : (
+                  <div className="bg-secondary/20 p-4 rounded-md text-center text-muted-foreground">
+                    Submit your answer to see the solution.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
-        ) : (
-          <Card>
-            <CardContent className="p-6">
-              <p className="text-muted-foreground">Question not found.</p>
-            </CardContent>
-          </Card>
-        )}
+    </div>
+      ) : (
+        <Card>
+          <CardContent className="p-6">
+            <p className="text-muted-foreground">Question not found.</p>
+          </CardContent>
+        </Card>
+      )}
 
         {/* Fixed Navigation Panel */}
         <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border p-4 shadow-lg z-50">

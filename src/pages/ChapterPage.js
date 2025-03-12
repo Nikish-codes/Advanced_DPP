@@ -1,20 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { fetchQuestions } from '../store/questionSlice';
+import { fetchQuestions, fetchBookmarkedQuestions } from '../store/questionSlice';
 import Layout from '../components/Layout';
 import MathContent from '../components/MathContent';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
-import { getAttemptedQuestions } from '../utils/localStorage';
+import { getAttemptedQuestions, isQuestionBookmarked } from '../utils/localStorage';
+import { getAvailableYears, getPaperTitle } from '../utils/paperData';
 
 const ChapterPage = () => {
-  const { subjectId, chapterId } = useParams();
+  const { subjectName, chapterName } = useParams();
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { modules, chapters, dataSource } = useSelector((state) => state.modules);
-  const { questions, loading } = useSelector((state) => state.questions);
+  const { questions, loading, bookmarkedQuestions } = useSelector((state) => state.questions);
   
   // State for filters and sorting
   const [filteredQuestions, setFilteredQuestions] = useState([]);
@@ -23,22 +24,35 @@ const ChapterPage = () => {
   const [sortOption, setSortOption] = useState('default');
   const [searchQuery, setSearchQuery] = useState('');
   const [attemptFilter, setAttemptFilter] = useState('all');
+  const [bookmarkFilter, setBookmarkFilter] = useState('all');
   
   // State for expandable panels
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   
-  const currentModule = modules.find(module => module.id === subjectId);
-  const currentChapters = chapters[subjectId] || [];
-  const currentChapter = currentChapters.find(chapter => chapter.id === chapterId);
+  // Find module and chapter based on slugs
+  const currentModule = modules.find(module => 
+    module.title.toLowerCase().replace(/\s+/g, '-') === subjectName
+  );
+  const currentChapters = chapters[currentModule?.id] || [];
+  const currentChapter = currentChapters.find(chapter => 
+    chapter.title.toLowerCase().replace(/\s+/g, '-') === chapterName
+  );
   
   // Get attempted questions data
   const attemptedQuestions = getAttemptedQuestions(dataSource);
   
+  // Get available years for PYQ
+  const availableYears = getAvailableYears();
+  
   useEffect(() => {
-    if (subjectId && chapterId) {
-      dispatch(fetchQuestions({ moduleId: subjectId, chapterId }));
+    if (currentModule?.id && currentChapter?.id) {
+      dispatch(fetchQuestions({ 
+        moduleId: currentModule.id, 
+        chapterId: currentChapter.id 
+      }));
+      dispatch(fetchBookmarkedQuestions());
     }
-  }, [dispatch, subjectId, chapterId]);
+  }, [dispatch, currentModule?.id, currentChapter?.id]);
   
   // Apply filters and sorting whenever questions, filters, or sort options change
   useEffect(() => {
@@ -90,6 +104,22 @@ const ChapterPage = () => {
       });
     }
     
+    // Apply bookmark filter
+    if (bookmarkFilter !== 'all') {
+      result = result.filter(q => {
+        const isBookmarked = bookmarkedQuestions[q.question_id];
+        
+        switch (bookmarkFilter) {
+          case 'bookmarked':
+            return isBookmarked;
+          case 'notBookmarked':
+            return !isBookmarked;
+          default:
+            return true;
+        }
+      });
+    }
+    
     // Apply search filter if there's a query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
@@ -113,7 +143,7 @@ const ChapterPage = () => {
     }
     
     setFilteredQuestions(result);
-  }, [questions, difficultyFilter, typeFilter, sortOption, searchQuery, attemptFilter, attemptedQuestions]);
+  }, [questions, difficultyFilter, typeFilter, sortOption, searchQuery, attemptFilter, bookmarkFilter, attemptedQuestions, bookmarkedQuestions]);
   
   if (!currentModule || !currentChapter) {
     return (
@@ -121,7 +151,7 @@ const ChapterPage = () => {
         <div className="flex flex-col items-center justify-center min-h-[50vh]">
           <h1 className="text-2xl font-bold mb-4">Chapter not found</h1>
           <Button asChild variant="outline">
-            <Link to={`/subjects/${subjectId}`}>
+            <Link to={`/${subjectName}`}>
               &larr; Back to {currentModule ? currentModule.title : 'Subject'}
             </Link>
           </Button>
@@ -169,6 +199,10 @@ const ChapterPage = () => {
     setAttemptFilter(e.target.value);
   };
   
+  const handleBookmarkFilterChange = (e) => {
+    setBookmarkFilter(e.target.value);
+  };
+  
   const toggleFilterPanel = () => {
     setIsFilterPanelOpen(!isFilterPanelOpen);
   };
@@ -179,11 +213,15 @@ const ChapterPage = () => {
     setSortOption('default');
     setSearchQuery('');
     setAttemptFilter('all');
+    setBookmarkFilter('all');
   };
   
   // Handle question click
   const handleQuestionClick = (questionId) => {
-    navigate(`/subjects/${subjectId}/chapters/${chapterId}/questions/${questionId}`);
+    const subjectSlug = currentModule?.title?.toLowerCase().replace(/\s+/g, '-') || subjectName;
+    const chapterSlug = currentChapter?.title?.toLowerCase().replace(/\s+/g, '-') || chapterName;
+    const questionNumber = questions.findIndex(q => q.question_id === questionId) + 1;
+    navigate(`/${subjectSlug}/${chapterSlug}/${questionNumber}`);
   };
   
   return (
@@ -191,7 +229,7 @@ const ChapterPage = () => {
       <div className="mb-8 flex items-center justify-between">
         <div>
           <Button asChild variant="ghost" className="group w-full">
-            <Link to={`/subjects/${subjectId}`} className="flex items-center space-x-2 w-full">
+            <Link to={`/${subjectName}`} className="flex items-center space-x-2 w-full">
               <svg 
                 xmlns="http://www.w3.org/2000/svg" 
                 width="24" 
@@ -206,10 +244,10 @@ const ChapterPage = () => {
               >
                 <path d="m15 18-6-6 6-6"/>
               </svg>
-              <span>Back to {currentModule.title}</span>
+              <span>Back to {currentModule?.title || 'Subject'}</span>
             </Link>
           </Button>
-          <h1 className="text-3xl font-bold">{currentChapter.title}</h1>
+          <h1 className="text-3xl font-bold">{currentChapter?.title || 'Chapter'}</h1>
         </div>
       </div>
       
@@ -270,7 +308,7 @@ const ChapterPage = () => {
           {/* Expandable Filters Panel */}
           {isFilterPanelOpen && (
             <Card className="mb-6 p-4">
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">Difficulty</label>
                   <select 
@@ -314,6 +352,19 @@ const ChapterPage = () => {
                 </div>
                 
                 <div>
+                  <label className="block text-sm font-medium mb-1">Bookmarks</label>
+                  <select 
+                    value={bookmarkFilter} 
+                    onChange={handleBookmarkFilterChange}
+                    className="w-full p-2 rounded-md bg-background border border-border focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    <option value="all">All Questions</option>
+                    <option value="bookmarked">Bookmarked Only</option>
+                    <option value="notBookmarked">Not Bookmarked</option>
+                  </select>
+                </div>
+                
+                <div>
                   <label className="block text-sm font-medium mb-1">Sort By</label>
                   <select 
                     value={sortOption} 
@@ -345,6 +396,7 @@ const ChapterPage = () => {
               {filteredQuestions.map((question, index) => {
                 const isAttempted = attemptedQuestions[question.question_id];
                 const isCorrect = isAttempted?.isCorrect;
+                const isBookmarked = bookmarkedQuestions[question.question_id];
                 
                 return (
                   <Card 
@@ -358,6 +410,22 @@ const ChapterPage = () => {
                       <div className="flex items-center justify-between mb-2">
                         <span className="font-medium">Question {questions.indexOf(question) + 1}</span>
                         <div className="flex items-center space-x-2">
+                          {isBookmarked && (
+                            <svg 
+                              xmlns="http://www.w3.org/2000/svg" 
+                              width="24" 
+                              height="24" 
+                              viewBox="0 0 24 24" 
+                              fill="currentColor"
+                              stroke="currentColor" 
+                              strokeWidth="2" 
+                              strokeLinecap="round" 
+                              strokeLinejoin="round" 
+                              className="h-4 w-4 text-yellow-500"
+                            >
+                              <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/>
+                            </svg>
+                          )}
                           {isAttempted && (
                             <Badge variant={isCorrect ? "success" : "destructive"}>
                               {isCorrect ? "Correct" : "Incorrect"}
@@ -403,8 +471,8 @@ const ChapterPage = () => {
           <p className="text-muted-foreground">No questions found for this chapter.</p>
           <div className="mt-4">
             <Button asChild variant="outline" className="w-full">
-              <Link to={`/subjects/${subjectId}`} className="flex items-center w-full">
-                &larr; Back to {currentModule.title}
+              <Link to={`/${subjectName}`} className="flex items-center w-full">
+                &larr; Back to {currentModule?.title || 'Subject'}
               </Link>
             </Button>
           </div>

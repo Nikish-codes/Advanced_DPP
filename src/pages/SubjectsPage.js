@@ -62,37 +62,40 @@ const SubjectsPage = () => {
         </div>
       ) : modules.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {modules.map((module) => (
-            <Link 
-              key={module.id} 
-              to={`/subjects/${module.id}`}
-              className="block transition-all duration-200 hover:-translate-y-1 hover:shadow-lg"
-            >
-              <Card className="h-full border hover:border-primary">
-                <div className="p-4 flex justify-between items-center">
-                  <h3 className="text-xl font-semibold text-primary">{module.title}</h3>
-                  <div className="flex items-center space-x-2 text-primary">
-                    <span className="text-sm">Start</span>
-                    <svg 
-                      xmlns="http://www.w3.org/2000/svg" 
-                      width="24" 
-                      height="24" 
-                      viewBox="0 0 24 24" 
-                      fill="none" 
-                      stroke="currentColor" 
-                      strokeWidth="2" 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round" 
-                      className="h-4 w-4"
-                    >
-                      <path d="M5 12h14"/>
-                      <path d="m12 5 7 7-7 7"/>
-                    </svg>
+          {modules.map((module) => {
+            const subjectSlug = module.title.toLowerCase().replace(/\s+/g, '-');
+            return (
+              <Link 
+                key={module.id} 
+                to={`/${subjectSlug}`}
+                className="block transition-all duration-200 hover:-translate-y-1 hover:shadow-lg"
+              >
+                <Card className="h-full border hover:border-primary">
+                  <div className="p-4 flex justify-between items-center">
+                    <h3 className="text-xl font-semibold text-primary">{module.title}</h3>
+                    <div className="flex items-center space-x-2 text-primary">
+                      <span className="text-sm">Start</span>
+                      <svg 
+                        xmlns="http://www.w3.org/2000/svg" 
+                        width="24" 
+                        height="24" 
+                        viewBox="0 0 24 24" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        strokeWidth="2" 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round" 
+                        className="h-4 w-4"
+                      >
+                        <path d="M5 12h14"/>
+                        <path d="m12 5 7 7-7 7"/>
+                      </svg>
+                    </div>
                   </div>
-                </div>
-              </Card>
-            </Link>
-          ))}
+                </Card>
+              </Link>
+            );
+          })}
         </div>
       ) : (
         <div className="text-center p-8">

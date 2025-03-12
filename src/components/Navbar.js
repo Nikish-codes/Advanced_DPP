@@ -31,6 +31,14 @@ const Navbar = () => {
               Home
             </Link>
             <Link 
+              to="/bookmarks" 
+              className={`text-sm font-medium transition-colors hover:text-primary ${
+                isActive('/bookmarks') ? 'text-foreground' : 'text-muted-foreground'
+              }`}
+            >
+              Bookmarks
+            </Link>
+            <Link 
               to="/progress" 
               className={`text-sm font-medium transition-colors hover:text-primary ${
                 isActive('/progress') ? 'text-foreground' : 'text-muted-foreground'
@@ -102,6 +110,15 @@ const Navbar = () => {
               onClick={() => setIsMobileMenuOpen(false)}
             >
               Home
+            </Link>
+            <Link 
+              to="/bookmarks" 
+              className={`block text-sm font-medium transition-colors hover:text-primary ${
+                isActive('/bookmarks') ? 'text-foreground' : 'text-muted-foreground'
+              }`}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Bookmarks
             </Link>
             <Link 
               to="/progress" 

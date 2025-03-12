@@ -7,19 +7,22 @@ import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 
 const SubjectPage = () => {
-  const { subjectId } = useParams();
+  const { subjectName } = useParams();
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { modules, chapters, dataSource } = useSelector((state) => state.modules);
   
-  const currentModule = modules.find(module => module.id === subjectId);
-  const currentChapters = chapters[subjectId] || [];
+  // Find module based on slug
+  const currentModule = modules.find(module => 
+    module.title.toLowerCase().replace(/\s+/g, '-') === subjectName
+  );
+  const currentChapters = chapters[currentModule?.id] || [];
   
   useEffect(() => {
-    if (subjectId) {
-      dispatch(fetchChapters(subjectId));
+    if (currentModule?.id) {
+      dispatch(fetchChapters(currentModule.id));
     }
-  }, [dispatch, subjectId]);
+  }, [dispatch, currentModule?.id]);
   
   if (!currentModule) {
     return (
@@ -74,40 +77,43 @@ const SubjectPage = () => {
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {currentChapters.map((chapter) => (
-          <Link 
-            key={chapter.id} 
-            to={`/subjects/${subjectId}/chapters/${chapter.id}`}
-            className="block transition-all duration-200 hover:-translate-y-1 hover:shadow-lg"
-          >
-            <div className="border rounded-lg p-6 h-full hover:border-primary">
-              <h2 className="text-xl font-semibold text-primary mb-2">{chapter.title}</h2>
-              <p className="text-muted-foreground mb-4 flex-grow">
-                Practice questions from this chapter.
-              </p>
-              <div className="flex justify-end mt-auto pt-2">
-                <span className="text-primary flex items-center">
-                  View Questions
-                  <svg 
-                    xmlns="http://www.w3.org/2000/svg" 
-                    width="24" 
-                    height="24" 
-                    viewBox="0 0 24 24" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    strokeWidth="2" 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    className="h-4 w-4 ml-1"
-                  >
-                    <path d="M5 12h14"/>
-                    <path d="m12 5 7 7-7 7"/>
-                  </svg>
-                </span>
+        {currentChapters.map((chapter) => {
+          const chapterSlug = chapter.title.toLowerCase().replace(/\s+/g, '-');
+          return (
+            <Link 
+              key={chapter.id} 
+              to={`/${subjectName}/${chapterSlug}`}
+              className="block transition-all duration-200 hover:-translate-y-1 hover:shadow-lg"
+            >
+              <div className="border rounded-lg p-6 h-full hover:border-primary">
+                <h2 className="text-xl font-semibold text-primary mb-2">{chapter.title}</h2>
+                <p className="text-muted-foreground mb-4 flex-grow">
+                  Practice questions from this chapter.
+                </p>
+                <div className="flex justify-end mt-auto pt-2">
+                  <span className="text-primary flex items-center">
+                    View Questions
+                    <svg 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      width="24" 
+                      height="24" 
+                      viewBox="0 0 24 24" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      strokeWidth="2" 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      className="h-4 w-4 ml-1"
+                    >
+                      <path d="M5 12h14"/>
+                      <path d="m12 5 7 7-7 7"/>
+                    </svg>
+                  </span>
+                </div>
               </div>
-            </div>
-          </Link>
-        ))}
+            </Link>
+          );
+        })}
       </div>
     </Layout>
   );

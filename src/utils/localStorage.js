@@ -1,4 +1,5 @@
 const STORAGE_KEY_PREFIX = 'jee_adv_progress';
+const BOOKMARKS_KEY_PREFIX = 'jee_adv_bookmarks';
 
 /**
  * Get the storage key based on data source
@@ -7,6 +8,15 @@ const STORAGE_KEY_PREFIX = 'jee_adv_progress';
  */
 const getStorageKey = (dataSource = 'DPP') => {
   return `${STORAGE_KEY_PREFIX}_${dataSource.toLowerCase()}`;
+};
+
+/**
+ * Get the bookmarks key based on data source
+ * @param {string} dataSource - The data source ('DPP' or 'PYQ')
+ * @returns {string} The bookmarks key
+ */
+const getBookmarksKey = (dataSource = 'DPP') => {
+  return `${BOOKMARKS_KEY_PREFIX}_${dataSource.toLowerCase()}`;
 };
 
 /**
@@ -42,6 +52,84 @@ export const saveUserProgress = (progressData, dataSource = 'DPP') => {
     localStorage.setItem(storageKey, JSON.stringify(progressData));
   } catch (error) {
     console.error('Error saving user progress to localStorage:', error);
+  }
+};
+
+/**
+ * Get bookmarked questions from localStorage
+ * @param {string} dataSource - The data source ('DPP' or 'PYQ')
+ * @returns {Object} Bookmarked questions object
+ */
+export const getBookmarkedQuestions = (dataSource = 'DPP') => {
+  try {
+    const bookmarksKey = getBookmarksKey(dataSource);
+    const bookmarksData = localStorage.getItem(bookmarksKey);
+    return bookmarksData ? JSON.parse(bookmarksData) : {};
+  } catch (error) {
+    console.error('Error getting bookmarks from localStorage:', error);
+    return {};
+  }
+};
+
+/**
+ * Save bookmarked questions to localStorage
+ * @param {Object} bookmarksData - Bookmarked questions data to save
+ * @param {string} dataSource - The data source ('DPP' or 'PYQ')
+ */
+export const saveBookmarkedQuestions = (bookmarksData, dataSource = 'DPP') => {
+  try {
+    const bookmarksKey = getBookmarksKey(dataSource);
+    localStorage.setItem(bookmarksKey, JSON.stringify(bookmarksData));
+  } catch (error) {
+    console.error('Error saving bookmarks to localStorage:', error);
+  }
+};
+
+/**
+ * Toggle bookmark status for a question
+ * @param {string} questionId - The ID of the question
+ * @param {Object} questionData - Basic question data to store with bookmark
+ * @param {string} dataSource - The data source ('DPP' or 'PYQ')
+ * @returns {boolean} New bookmark status
+ */
+export const toggleQuestionBookmark = (questionId, questionData, dataSource = 'DPP') => {
+  try {
+    const bookmarks = getBookmarkedQuestions(dataSource);
+    
+    // If question is already bookmarked, remove it
+    if (bookmarks[questionId]) {
+      delete bookmarks[questionId];
+      saveBookmarkedQuestions(bookmarks, dataSource);
+      return false;
+    }
+    
+    // Otherwise, add it
+    bookmarks[questionId] = {
+      ...questionData,
+      timestamp: Date.now()
+    };
+    
+    saveBookmarkedQuestions(bookmarks, dataSource);
+    return true;
+  } catch (error) {
+    console.error('Error toggling question bookmark:', error);
+    return false;
+  }
+};
+
+/**
+ * Check if a question is bookmarked
+ * @param {string} questionId - The ID of the question
+ * @param {string} dataSource - The data source ('DPP' or 'PYQ')
+ * @returns {boolean} Whether the question is bookmarked
+ */
+export const isQuestionBookmarked = (questionId, dataSource = 'DPP') => {
+  try {
+    const bookmarks = getBookmarkedQuestions(dataSource);
+    return !!bookmarks[questionId];
+  } catch (error) {
+    console.error('Error checking if question is bookmarked:', error);
+    return false;
   }
 };
 
@@ -152,6 +240,10 @@ export const clearUserProgress = (dataSource = 'DPP') => {
 const localStorageUtils = {
   getUserProgress,
   saveUserProgress,
+  getBookmarkedQuestions,
+  saveBookmarkedQuestions,
+  toggleQuestionBookmark,
+  isQuestionBookmarked,
   markQuestionAttempted,
   saveUserAnswer,
   isQuestionAttempted,

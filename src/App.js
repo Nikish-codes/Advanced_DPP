@@ -6,6 +6,7 @@ import SubjectPage from './pages/SubjectPage';
 import ChapterPage from './pages/ChapterPage';
 import QuestionPage from './pages/QuestionPage';
 import ProgressPage from './pages/ProgressPage';
+import BookmarksPage from './pages/BookmarksPage';
 import MathTest from './components/MathTest';
 
 function App() {
@@ -13,16 +14,17 @@ function App() {
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/subjects" element={<SubjectsPage />} />
-      <Route path="/subjects/:subjectId" element={<SubjectPage />} />
-      <Route path="/subjects/:subjectId/chapters/:chapterId" element={<ChapterPage />} />
-      <Route path="/subjects/:subjectId/chapters/:chapterId/questions/:questionId" element={<QuestionPage />} />
+      <Route path="/:subjectName" element={<SubjectPage />} />
+      <Route path="/:subjectName/:chapterName" element={<ChapterPage />} />
+      <Route path="/:subjectName/:chapterName/:questionNumber" element={<QuestionPage />} />
       <Route path="/progress" element={<ProgressPage />} />
+      <Route path="/bookmarks" element={<BookmarksPage />} />
       <Route path="/math-test" element={<MathTest />} />
       
       {/* Legacy routes for compatibility */}
-      <Route path="/module/:subjectId" element={<Navigate to="/subjects/:subjectId" replace />} />
-      <Route path="/module/:subjectId/chapter/:chapterId" element={<Navigate to="/subjects/:subjectId/chapters/:chapterId" replace />} />
-      <Route path="/module/:subjectId/chapter/:chapterId/question/:questionId" element={<Navigate to="/subjects/:subjectId/chapters/:chapterId/questions/:questionId" replace />} />
+      <Route path="/subjects/:subjectId" element={<Navigate to="/:subjectName" replace />} />
+      <Route path="/subjects/:subjectId/chapters/:chapterId" element={<Navigate to="/:subjectName/:chapterName" replace />} />
+      <Route path="/subjects/:subjectId/chapters/:chapterId/questions/:questionId" element={<Navigate to="/:subjectName/:chapterName/:questionNumber" replace />} />
       
       {/* Catch-all route */}
       <Route path="*" element={<Navigate to="/" replace />} />

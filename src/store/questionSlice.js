@@ -1,6 +1,11 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { getQuestions, getQuestion, filterQuestions } from '../utils/dataParser';
-import { markQuestionAttempted, saveUserAnswer } from '../utils/localStorage';
+import { 
+  markQuestionAttempted, 
+  saveUserAnswer, 
+  toggleQuestionBookmark, 
+  getBookmarkedQuestions 
+} from '../utils/localStorage';
 
 // Async thunk to fetch questions for a chapter
 export const fetchQuestions = createAsyncThunk(
@@ -22,6 +27,19 @@ export const fetchQuestion = createAsyncThunk(
     try {
       const { dataSource } = getState().modules;
       return getQuestion(moduleId, chapterId, questionId, dataSource);
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+// Async thunk to fetch bookmarked questions
+export const fetchBookmarkedQuestions = createAsyncThunk(
+  'questions/fetchBookmarkedQuestions',
+  async (_, { getState, rejectWithValue }) => {
+    try {
+      const { dataSource } = getState().modules;
+      return getBookmarkedQuestions(dataSource);
     } catch (error) {
       return rejectWithValue(error.message);
     }
@@ -59,6 +77,7 @@ const initialState = {
   questions: [],
   filteredQuestions: [],
   currentQuestion: null,
+  bookmarkedQuestions: {},
   filters: {
     level: null,
     type: null,
@@ -104,6 +123,22 @@ const questionSlice = createSlice({
         timestamp: Date.now(),
       };
     },
+    toggleBookmark: (state, action) => {
+      const { questionId, questionData, dataSource } = action.payload;
+      
+      // Toggle in localStorage and get new status
+      const isBookmarked = toggleQuestionBookmark(questionId, questionData, dataSource);
+      
+      // Update state
+      if (isBookmarked) {
+        state.bookmarkedQuestions[questionId] = {
+          ...questionData,
+          timestamp: Date.now()
+        };
+      } else {
+        delete state.bookmarkedQuestions[questionId];
+      }
+    },
     clearQuestions: (state) => {
       state.questions = [];
       state.filteredQuestions = [];
@@ -138,6 +173,19 @@ const questionSlice = createSlice({
       .addCase(fetchQuestion.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+      })
+      // Fetch bookmarked questions
+      .addCase(fetchBookmarkedQuestions.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchBookmarkedQuestions.fulfilled, (state, action) => {
+        state.loading = false;
+        state.bookmarkedQuestions = action.payload;
+      })
+      .addCase(fetchBookmarkedQuestions.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
       });
   },
 });
@@ -148,6 +196,7 @@ export const {
   setFilters, 
   clearFilters, 
   submitAnswer,
+  toggleBookmark,
   clearQuestions
 } = questionSlice.actions;
 
