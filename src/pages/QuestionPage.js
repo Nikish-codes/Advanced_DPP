@@ -379,8 +379,8 @@ const QuestionPage = () => {
       <div className="pb-32">
       <div className="mb-8 flex flex-col space-y-4">
         <div className="flex items-center justify-between">
-            <Button asChild variant="ghost" className="group w-full">
-              <Link to={`/${subjectName}/${chapterName}`} className="flex items-center space-x-2 w-full">
+            <Button asChild variant="ghost" className="group">
+              <Link to={`/${subjectName}/${chapterName}`} className="flex items-center space-x-2">
               <svg 
                 xmlns="http://www.w3.org/2000/svg" 
                 width="24" 
@@ -395,7 +395,8 @@ const QuestionPage = () => {
               >
                 <path d="m15 18-6-6 6-6"/>
               </svg>
-                <span>Back to {currentChapter?.title || 'Chapter'}</span>
+                <span className="hidden sm:inline">Back to {currentChapter?.title || 'Chapter'}</span>
+                <span className="sm:hidden">Back</span>
             </Link>
           </Button>
             <Button 
@@ -758,14 +759,13 @@ const QuestionPage = () => {
 
         {/* Fixed Navigation Panel */}
         <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border p-4 shadow-lg z-50">
-          <div className="max-w-4xl mx-auto">
-            <div className="flex justify-between items-center">
+          <div className="container max-w-4xl mx-auto">
+            <div className="flex justify-between items-center gap-4">
               <Button 
                 variant="outline" 
-                size="lg"
                 onClick={() => navigateToQuestion(-1)}
                 disabled={currentIndex <= 0}
-                className="w-[150px] h-[50px] text-lg flex items-center justify-center space-x-2 cursor-pointer"
+                className="flex-1 sm:flex-none sm:w-[150px] h-[45px] text-base sm:text-lg flex items-center justify-center space-x-1 sm:space-x-2 cursor-pointer"
               >
                 <svg 
                   xmlns="http://www.w3.org/2000/svg" 
@@ -777,26 +777,27 @@ const QuestionPage = () => {
                   strokeWidth="2" 
                   strokeLinecap="round" 
                   strokeLinejoin="round" 
-                  className="h-6 w-6"
+                  className="h-5 w-5 sm:h-6 sm:w-6"
                 >
                   <path d="m15 18-6-6 6-6"/>
                 </svg>
-                <span>Previous</span>
+                <span className="hidden sm:inline">Previous</span>
+                <span className="sm:hidden">Prev</span>
               </Button>
 
-              <div className="text-center">
-                <span className="text-sm text-muted-foreground">Question</span>
-                <h2 className="text-xl font-bold">{currentIndex + 1} of {questions.length}</h2>
+              <div className="text-center flex-shrink-0">
+                <span className="text-xs sm:text-sm text-muted-foreground">Question</span>
+                <h2 className="text-lg sm:text-xl font-bold">{currentIndex + 1} of {questions.length}</h2>
               </div>
 
               <Button 
                 variant="outline" 
-                size="lg"
                 onClick={() => navigateToQuestion(1)}
                 disabled={currentIndex >= questions.length - 1}
-                className="w-[150px] h-[50px] text-lg flex items-center justify-center space-x-2 cursor-pointer"
+                className="flex-1 sm:flex-none sm:w-[150px] h-[45px] text-base sm:text-lg flex items-center justify-center space-x-1 sm:space-x-2 cursor-pointer"
               >
-                <span>Next</span>
+                <span className="hidden sm:inline">Next</span>
+                <span className="sm:hidden">Next</span>
                 <svg 
                   xmlns="http://www.w3.org/2000/svg" 
                   width="24" 
@@ -807,7 +808,7 @@ const QuestionPage = () => {
                   strokeWidth="2" 
                   strokeLinecap="round" 
                   strokeLinejoin="round" 
-                  className="h-6 w-6"
+                  className="h-5 w-5 sm:h-6 sm:w-6"
                 >
                   <path d="m9 18 6-6-6-6"/>
                 </svg>
